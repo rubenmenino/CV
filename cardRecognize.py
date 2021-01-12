@@ -44,13 +44,20 @@ while True:
     cards = []
     ## desenhar o contorno (encontra vários contornos)
     contours, hierarchy = cv2.findContours(modified, mode, method) 
-
+    countMoreNumber = []
+    pointsCards = []
+    #print(len(contours))
     numContours = len(contours) - 2 # dáme sempre dois a mais, nao faço a minima porque, (-2)
-    numContoursStr = 'Existem ' + str(numContours) + ' cartas'
+    if numContours == 0:
+        pass
+    elif numContours == 1:
+        numContoursStr = 'Existe ' + str(numContours) + ' carta'
+    else:
+        numContoursStr = 'Existem ' + str(numContours) + ' cartas'
 
     ## chamar a função texto numero de cartas 
     numberOfCards(frame)
-
+    four_corners_set = []
     #print(len(contours) - 2)
     for con in contours:
         area = cv2.contourArea(con)
@@ -59,9 +66,28 @@ while True:
         #print("contours", cnt)
         if len(approx) == 4 and area > 20000: #numero de pontos (retangulo = 4)
             x, y, w, h = cv2.boundingRect(approx)
+            #print("x", x)
+            #print("y", y)
+            ## point of each rectangle (top - right)
+            ## 1st rectangle (36,79)   2st rectangle (244,74)   3st rectangle (452,77) ex
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
-            cards.append(con)
             
+            pointsCards.append(approx)
+            #print(pointsCards)
+            
+            for points in pointsCards:
+                firstPoint = points[0]              ## pontos das cartas ( nao estao ordenados)
+                secondPoint = points[1]
+                thirdPoint = points[2]
+                fourPoint = points[3]
+            
+
+            #print("firstPoint", firstPoint)      
+            #print("secondPoint", secondPoint)    
+            #print("thirdPoint", thirdPoint)      
+            #print("fourPoint", fourPoint)        
+
+
 
     cv2.createTrackbar("t", "modified", 130, 200, nothing)   ## queria mudar em tempo real, idk como fazer
     cv2.imshow('frame', frame)
