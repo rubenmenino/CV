@@ -3,7 +3,8 @@ import urllib.request
 import numpy as np
 
 #cap = cv2.VideoCapture(0)
-URL = "http://192.168.1.5:8080/shot.jpg" #p eu correr no tele
+#URL = "http://192.168.1.5:8080/shot.jpg" #p eu correr no tele
+URL =  "http://192.168.1.194:8080/shot.jpg"
 
 def nothing(x):
     pass
@@ -89,8 +90,8 @@ def transform2binary(image):
     return img
 
 def addImages(image1, image2):
-    image1 = transform2binary(image1)
-    image2 = transform2binary(image2)
+    #image1 = transform2binary(image1)
+    #image2 = transform2binary(image2)
 
     added_im = cv2.add(image1,image2)
 
@@ -98,10 +99,16 @@ def addImages(image1, image2):
 
 
 cv2.namedWindow("modified")
-value = 140
+value = 106
 cv2.createTrackbar("t", "modified", value, 200, nothing)   ## queria mudar em tempo real, idk como fazer
 logo_queen= cv2.imread("cardsLogo/queen.jpg")
 
+cinco = cv2.imread("cardsLogo/numbers/5.jpg")
+cinco = cv2.cvtColor(cinco, cv2.COLOR_BGR2GRAY)
+
+#cv2.imshow('cinco',cinco)
+
+#print("cinco",eight.shape)
 
 while True:
     #print(t)
@@ -221,28 +228,66 @@ while True:
 
         resultPerspective = image_resize(resultPerspective, 300)
 
-        logo = resultPerspective[0:120, 0:40] #primerio valor altura(x), segundo largura(y)
+        logo = resultPerspective[0:120, 10:52] #primerio valor altura(x), segundo largura(y)
+        logo = transform2binary(logo)
+        ## split simbol and number
 
-        if logo.shape[0] == logo_queen.shape[0]:
-            added_queen = addImages(logo,logo_queen)
+        number = logo[0:75, 0:40]
+        simbol = logo[76:120, 0:35]
+        
+        ## SIMBOL
+        contoursSimbol, hier = cv2.findContours(simbol, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contoursSimbol = sorted(contoursSimbol, key = cv2.contourArea, reverse=True)
+        
+        if len(contoursSimbol) != 0:
+            x1,y1,w1,h1 = cv2.boundingRect(contoursSimbol[0])
+            xSimbol = simbol[y1:y1+h1, x1:x1+w1]
+            #cv2.rectangle(simbol,(x1,y1),(x1+w1,y1+h1),(255,0,0),2)
+            #print("w1", w1) ## 34
+            #print("h1",h1)  ## 55
+            sizeSimbol = cv2.resize(xSimbol, (34,55),0,0)
+
+        ## NUMBER
+        contoursNumber, hier = cv2.findContours(number, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contoursNumber = sorted(contoursNumber, key = cv2.contourArea, reverse=True)
+        
+        if len(contoursNumber) != 0:
+            x2,y2,w2,h2 = cv2.boundingRect(contoursNumber[0])
+            xNumber = number[y2:y2+h2, x2:x2+w2]
+            #cv2.rectangle(number,(x2,y2),(x2+w2,y2+h2),(255,0,0),2)
+            #print("w2", w2) ## 27
+            #print("h2",h2)  ## 31
+            sizeNumber = cv2.resize(xNumber, (27,31),0 ,0)
+            print("numero", sizeNumber.shape)
+
+        added_clubs = addImages(sizeNumber,cinco)
+        #w_pixels_clubs = cv2.countNonZero(added_clubs)
+        
+
+        if sizeNumber.shape[0] == cinco.shape[0]:
+            print("lul")
+            added_clubs = addImages(sizeNumber,cinco)
             
-            w_pixels_queen = cv2.countNonZero(added_queen)
+            w_pixels_clubs = cv2.countNonZero(added_clubs)
 
-            print("pixeis queen", w_pixels_queen)
+            print("pixeis clubs", w_pixels_clubs)
+            
+            cv2.imshow('added',added_clubs)
 
-            cv2.imshow('added',added_queen)
-
-            if w_pixels_queen > 4300:
-                cv2.putText(frame, 'Exists a 2 of clubs ', (70,990), 4,  
-                    4, (255, 0, 0) , 2, cv2.LINE_AA) 
-
+            if w_pixels_clubs < 550:
+                cv2.putText(frame, 'É UM CINCO ', (50,400), 2,  
+                    2, (255, 0, 0) , 2, cv2.LINE_AA) 
+            
             
 
            
  
         cv2.imshow('wrap', resultPerspective)
-        logo = transform2binary(logo)
+        
         cv2.imshow('cropped', logo)
+        cv2.imshow('simbol', sizeSimbol)
+        cv2.imshow('number', sizeNumber)
+        #print(sizeNumber)
         
 
     frame = image_resize(frame, 1000) 
@@ -253,9 +298,9 @@ while True:
     cv2.imshow('modified', modified)
     
     if cv2.waitKey(1) & 0xFF == ord('w'): #to get the cards logo
-        cv2.imwrite('vertical.jpg', logo)
+        cv2.imwrite('clubs.jpg', sizeSimbol)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(25) & 0xFF == ord('q'):
         break
 
 cap.release()
