@@ -2,8 +2,8 @@ from cv2 import cv2
 import urllib.request
 import numpy as np
 
-cap = cv2.VideoCapture(0)
-#URL = "http://192.168.1.5:8080/shot.jpg" #p eu correr no tele
+#cap = cv2.VideoCapture(0)
+URL = "http://192.168.1.5:8080/shot.jpg" #p eu correr no tele
 
 def nothing(x):
     pass
@@ -82,8 +82,9 @@ def image_resize(image, width = None, height = None): #resize proporcional
     return resized
 
 def transform2binary(image):
+    image = ~image 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    _,img = cv2.threshold(gray, t, 255, cv2.THRESH_BINARY)
+    _,img = cv2.threshold(gray, t, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     return img
 
@@ -99,15 +100,15 @@ def addImages(image1, image2):
 cv2.namedWindow("modified")
 value = 140
 cv2.createTrackbar("t", "modified", value, 200, nothing)   ## queria mudar em tempo real, idk como fazer
-logo_v = cv2.imread("cardsLogo/2paus/vertical.jpg")
-logo_h = cv2.imread("cardsLogo/2paus/horizontal.jpg")
+logo_queen= cv2.imread("cardsLogo/queen.jpg")
+
 
 while True:
     #print(t)
-    ret, frame = cap.read()
+    #ret, frame = cap.read()
     
-    #img_arr = np.array(bytearray(urllib.request.urlopen(URL).read()),dtype=np.uint8)
-    #frame = cv2.imdecode(img_arr, -1)
+    img_arr = np.array(bytearray(urllib.request.urlopen(URL).read()),dtype=np.uint8)
+    frame = cv2.imdecode(img_arr, -1)
 
     t = cv2.getTrackbarPos("t", "modified") # ver depois
     #print(t)
@@ -180,6 +181,7 @@ while True:
         a = ordenatePoints(fourPoints[0])
         
         (br, bl, tl, tr) = a
+       
         widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
         widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
         maxWidth = max(int(widthA), int(widthB))
@@ -193,6 +195,11 @@ while True:
         if  maxHeight > maxWidth :
             
             a = [tr,br,bl,tl]
+
+        else:
+            maxH = maxHeight
+            maxHeight = maxWidth
+            maxWidth = maxH
 
         src = np.float32(a)
           
@@ -214,33 +221,24 @@ while True:
 
         resultPerspective = image_resize(resultPerspective, 300)
 
-        logo = resultPerspective[0:170, 0:65] #primerio valor altura(x), segundo largura(y)
+        logo = resultPerspective[0:120, 0:40] #primerio valor altura(x), segundo largura(y)
 
-        if logo.shape[0] == logo_v.shape[0]:
-            added_v = addImages(logo,logo_v)
-            added_h = addImages(logo,logo_h)
+        if logo.shape[0] == logo_queen.shape[0]:
+            added_queen = addImages(logo,logo_queen)
             
-            w_pixels_v = cv2.countNonZero(added_v)
-            w_pixels_h = cv2.countNonZero(added_h)
+            w_pixels_queen = cv2.countNonZero(added_queen)
 
-            w_pixels = min(w_pixels_v, w_pixels_h)
+            print("pixeis queen", w_pixels_queen)
 
-            vertical = False
+            cv2.imshow('added',added_queen)
 
-            if w_pixels == w_pixels_v:
-                vertical = True
-
-            if w_pixels <= 9600 and vertical:
+            if w_pixels_queen > 4300:
                 cv2.putText(frame, 'Exists a 2 of clubs ', (70,990), 4,  
-                   4, (255, 0, 0) , 2, cv2.LINE_AA) 
+                    4, (255, 0, 0) , 2, cv2.LINE_AA) 
 
-                cv2.imshow('added',added_v)
+            
 
-            if w_pixels <= 9900 and not vertical:
-                cv2.putText(frame, 'Exists a 2 of clubs ', (70,990), 4,  
-                   4, (255, 0, 0) , 2, cv2.LINE_AA) 
-
-                cv2.imshow('added',added_h)
+           
  
         cv2.imshow('wrap', resultPerspective)
         logo = transform2binary(logo)
