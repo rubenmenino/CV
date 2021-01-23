@@ -1,7 +1,9 @@
 from cv2 import cv2
+import urllib.request
 import numpy as np
 
-cap = cv2.VideoCapture(2)
+cap = cv2.VideoCapture(0)
+#URL = "http://192.168.1.5:8080/shot.jpg" #p eu correr no tele
 
 def nothing(x):
     pass
@@ -24,7 +26,7 @@ def ordenatePoints(points): #bottom right, #bottom left,  # top left,  # top rig
     
     #print("depois", arr_sorted)
     arr_sorted = arr
-    arr_sorted = [arr[2],arr[3],arr[0],arr[1]]
+    #arr_sorted = [arr[2],arr[3],arr[0],arr[1]]
     return arr_sorted
 
 
@@ -33,7 +35,7 @@ def numberOfCards(image, number):
     # org 
     org = (50, 50) 
     # fontScale 
-    fontScale = 1
+    fontScale = 3
     # Blue color in BGR 
     color = (255, 0, 0) 
     # Line thickness of 2 px 
@@ -55,13 +57,58 @@ def imageProcessing(img, threshold):
     return threshImage
 
 
+
+def image_resize(image, width = None, height = None): #resize proporcional
+
+    dim = None
+    (h, w) = image.shape[:2]
+
+  
+    if width is None and height is None:
+        return image
+    
+    if width is None:
+        r = height / float(h)
+        dim = (int(w * r), height)
+
+    else:
+     
+        r = width / float(w)
+        dim = (width, int(h * r))
+
+    # resize the image
+    resized = cv2.resize(image, dim, interpolation = cv2.INTER_AREA)
+
+    return resized
+
+def transform2binary(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    _,img = cv2.threshold(gray, t, 255, cv2.THRESH_BINARY)
+
+    return img
+
+def addImages(image1, image2):
+    image1 = transform2binary(image1)
+    image2 = transform2binary(image2)
+
+    added_im = cv2.add(image1,image2)
+
+    return added_im
+
+
 cv2.namedWindow("modified")
 value = 140
 cv2.createTrackbar("t", "modified", value, 200, nothing)   ## queria mudar em tempo real, idk como fazer
+logo_v = cv2.imread("cardsLogo/2paus/vertical.jpg")
+logo_h = cv2.imread("cardsLogo/2paus/horizontal.jpg")
+
 while True:
     #print(t)
     ret, frame = cap.read()
     
+    #img_arr = np.array(bytearray(urllib.request.urlopen(URL).read()),dtype=np.uint8)
+    #frame = cv2.imdecode(img_arr, -1)
+
     t = cv2.getTrackbarPos("t", "modified") # ver depois
     #print(t)
     ## processar a imagem
@@ -90,13 +137,6 @@ while True:
         #print("contours", cnt)
         if len(approx) == 4 and area > 20000: #numero de pontos (retangulo = 4)
             x, y, w, h = cv2.boundingRect(approx)
-            cardDimensions.append((w,h))
-            #print("lululul",cardDimensions)
-            #print("w", w)
-            #print("h", h)
-            ## point of each rectangle (top - right)
-            ## 1st rectangle (36,79)   2st rectangle (244,74)   3st rectangle (452,77) ex
-            #cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
             
             pointsCards.append(approx)
 
@@ -108,14 +148,8 @@ while True:
                 thirdPoint = points[2]
                 fourPoint = points[3]
                 
-                #print("firstPoint", firstPoint)      
-                #print("secondPoint", secondPoint)    
-                #print("thirdPoint", thirdPoint)      
-                #print("fourPoint", fourPoint)        
-
                 duplicate = False
-                #print(duplicate)
-
+         
                 for lst in fourPoints:
                     if lst!=[] and firstPoint in lst[0]:
                 
@@ -126,18 +160,11 @@ while True:
                     fourPointsCard.append(secondPoint)
                     fourPointsCard.append(thirdPoint)
                     fourPointsCard.append(fourPoint)
-                #arr = np.array(fourPointsCard)
-                #print(arr)
-                    #print("-------")
-                    fourPoints += [fourPointsCard]
-
-                
-                    
+               
+                    fourPoints += [fourPointsCard]        
                      
 
-    fourPoints.pop(0)
-    #print(fourPoints) 
-    #print(len(fourPoints))       
+    fourPoints.pop(0)     
     
     if (len(fourPoints) == 0 ) :
         numContoursStr = 'Nao foi detetada nenhuma carta'
@@ -151,44 +178,33 @@ while True:
     
     if fourPoints != []: 
         a = ordenatePoints(fourPoints[0])
-        print(a)
         
-        
-        (tl, tr, bl, br,) = a
+        (br, bl, tl, tr) = a
         widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
         widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
         maxWidth = max(int(widthA), int(widthB))
-        #print("maxWidth",maxWidth)
+       
 
         heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
         heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
         maxHeight = max(int(heightA), int(heightB))
-        #print("maxHeight", maxHeight)
-
-        #print("a",a)
-        src = np.float32(a)
-        #print("1src", src)
-        # 1: w    2:h
-        #if not cardDimensions[0][0] > cardDimensions[0][1]:
-            #print("lululul",cardDimensions[0][0])
+        
+       
+        if  maxHeight > maxWidth :
             
-            #src = cv2.flip(src,0)
-            #src = cv2.rotate(src, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            #print("src",src)
+            a = [tr,br,bl,tl]
 
+        src = np.float32(a)
+          
         
         #print(a)
         # perspective transform (https://www.geeksforgeeks.org/perspective-transformation-python-opencv/) # função opencv
         
-        #print(src)
-        # now define which corner we are referring to
-        #dst = np.float32([[0, 0], [0, 400], [300, 400], [300, 0]])  # top left, # top right, #bottom left, #bottom right
-        
-        dst = np.array([
+        dst = np.array([ #ordem contraria aos pontos
 		[0, 0],
-		[maxWidth - 1, 0],
+		[0, maxHeight - 1],
 		[maxWidth - 1, maxHeight - 1],
-		[0, maxHeight - 1]], dtype = "float32")
+		[maxWidth - 1, 0]], dtype = "float32")
 
 
         # transformation matrix
@@ -196,19 +212,50 @@ while True:
 
         resultPerspective = cv2.warpPerspective(frame, matrix, (maxWidth, maxHeight))
 
-        
-        
-        #print(resultPerspective)
+        resultPerspective = image_resize(resultPerspective, 300)
+
+        logo = resultPerspective[0:170, 0:65] #primerio valor altura(x), segundo largura(y)
+
+        if logo.shape[0] == logo_v.shape[0]:
+            added_v = addImages(logo,logo_v)
+            added_h = addImages(logo,logo_h)
+            
+            w_pixels_v = cv2.countNonZero(added_v)
+            w_pixels_h = cv2.countNonZero(added_h)
+
+            w_pixels = min(w_pixels_v, w_pixels_h)
+
+            vertical = False
+
+            if w_pixels == w_pixels_v:
+                vertical = True
+
+            if w_pixels <= 9600 and vertical:
+                cv2.putText(frame, 'Exists a 2 of clubs ', (70,990), 4,  
+                   4, (255, 0, 0) , 2, cv2.LINE_AA) 
+
+                cv2.imshow('added',added_v)
+
+            if w_pixels <= 9900 and not vertical:
+                cv2.putText(frame, 'Exists a 2 of clubs ', (70,990), 4,  
+                   4, (255, 0, 0) , 2, cv2.LINE_AA) 
+
+                cv2.imshow('added',added_h)
+ 
         cv2.imshow('wrap', resultPerspective)
+        logo = transform2binary(logo)
+        cv2.imshow('cropped', logo)
+        
 
-    
-
+    frame = image_resize(frame, 1000) 
+    modified = image_resize(modified, 400)
 
     
     cv2.imshow('frame', frame)
     cv2.imshow('modified', modified)
     
-
+    if cv2.waitKey(1) & 0xFF == ord('w'): #to get the cards logo
+        cv2.imwrite('vertical.jpg', logo)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
