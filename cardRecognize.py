@@ -5,7 +5,7 @@ import numpy as np
 
 
 #cap = cv2.VideoCapture(0)
-URL = "http://192.168.1.12:8080/shot.jpg" #p eu correr no tele
+URL = "http://192.168.1.9:8080/shot.jpg" #p eu correr no tele
 #URL =  "http://192.168.1.194:8080/shot.jpg"
 
 def nothing(x):
@@ -30,13 +30,13 @@ def ordenatePoints(points): #bottom right, #bottom left,  # top left,  # top rig
     #print("depois", arr_sorted)
     arr_sorted = arr
     #arr_sorted = [arr[2],arr[3],arr[0],arr[1]]
-    return arr_sorted
+    return arr_sorted, cen
 
 
 def numberOfCards(image, number):
     font = cv2.FONT_HERSHEY_SIMPLEX 
     # org 
-    org = (50, 50) 
+    org = (50, 60) 
     # fontScale 
     fontScale = 3
     # Blue color in BGR 
@@ -138,12 +138,15 @@ def bestMatch(num, symb):
     min_number_pixels = 9999999999
     best_match_number = 0
     for key in number_dict.keys():
-        added = addImages(num, number_dict[key])
-        pixels = cv2.countNonZero(added)
+        #added = addImages(num, number_dict[key])
+        #pixels = cv2.countNonZero(added)
 
-        if pixels < min_number_pixels:
+        diff = cv2.absdiff(num, number_dict[key] )
+        value  = int(np.sum(diff)/255)
+
+        if value < min_number_pixels:
             best_match_number = key
-            min_number_pixels = pixels
+            min_number_pixels = value
 
     symbol_pixels = cv2.countNonZero(symb)
     min = 9999999
@@ -205,7 +208,7 @@ while True:
         #print("contours", cnt)
         if len(approx) == 4 and area > 20000: #numero de pontos (retangulo = 4)
             x, y, w, h = cv2.boundingRect(approx)
-            
+           
             pointsCards.append(approx)
 
             #print(pointsCards)
@@ -235,18 +238,18 @@ while True:
     fourPoints.pop(0)     
     
     if (len(fourPoints) == 0 ) :
-        numContoursStr = 'Nao foi detetada nenhuma carta'
+        numContoursStr = 'no card detected'
     elif len(fourPoints) == 1:
-        numContoursStr = 'Existe 1 carta'
+        numContoursStr = '1 card detected '
     else:
-        numContoursStr = 'Existem ' + str(len(fourPoints)) + ' cartas'
+        numContoursStr =  str(len(fourPoints)) + ' cards detected'
     
     numberOfCards(frame, numContoursStr)
     
     if fourPoints != []: 
         for points in fourPoints:
     
-            a = ordenatePoints(points)
+            a, center = ordenatePoints(points)
         
             (br, bl, tl, tr) = a
        
@@ -342,7 +345,8 @@ while True:
                             2, (255, 0, 0) , 2, cv2.LINE_AA) 
                 '''
                 number_txt, symbol_txt = bestMatch(sizeNumber, sizeSimbol)
-                cv2.putText(frame, ""+number_txt+ " of "+ symbol_txt+" !", (int(br[0]), int(br[1])), 2,  
+                
+                cv2.putText(frame, ""+number_txt+ " of "+ symbol_txt+" !", (int(center[0]), int(center[1])), 2,  
                             2, (255, 0, 0) , 2, cv2.LINE_AA)
                 '''
                     added_clubs = addImages(sizeSimbol,symbol_dict["clubs"])
