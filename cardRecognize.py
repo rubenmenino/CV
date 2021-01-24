@@ -11,8 +11,8 @@ URL = "http://192.168.1.9:8080/shot.jpg" #p eu correr no tele
 def nothing(x):
     pass
 
-                        ## top left,  # top right, #bottom right, #bottom left,
-def ordenatePoints(points): #bottom right, #bottom left,  # top left,  # top right,     # retorna os primeiros 4 pontos (funciona se tiver uma carta)
+                       
+def ordenatePoints(points): #bottom right, #bottom left,  # top left,  # top right,     
     arr = np.array(points)[:, 0] # Remove singleton dimension
     # Find the centroid
     cen = np.mean(arr, axis=0)
@@ -23,7 +23,7 @@ def ordenatePoints(points): #bottom right, #bottom left,  # top left,  # top rig
     angles[angles < 0] = angles[angles < 0] + 2*np.pi
     # Order based on angle - ascending order
     ind = np.argsort(-angles)
-    #print("antes", angles)
+   
     # Reorder your points
     arr_sorted = arr[ind] 
     
@@ -92,9 +92,7 @@ def transform2binary(image):
     return img
 
 def addImages(image1, image2):
-    #image1 = transform2binary(image1)
-    #image2 = transform2binary(image2)
-
+  
     added_im = cv2.add(image1,image2)
 
     return added_im
@@ -164,14 +162,12 @@ def bestMatch(num, symb):
 
 
 cv2.namedWindow("modified")
-value = 106
+value = 140
 cv2.createTrackbar("t", "modified", value, 200, nothing)   ## queria mudar em tempo real, idk como fazer
 
 loadCardImages()
 
-#cv2.imshow('cinco',cinco)
 
-#print("cinco",eight.shape)
 
 while True:
     #print(t)
