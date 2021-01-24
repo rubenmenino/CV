@@ -2,9 +2,11 @@ from cv2 import cv2
 import urllib.request
 import numpy as np
 
+
+
 #cap = cv2.VideoCapture(0)
-#URL = "http://192.168.1.5:8080/shot.jpg" #p eu correr no tele
-URL =  "http://192.168.1.194:8080/shot.jpg"
+URL = "http://192.168.1.12:8080/shot.jpg" #p eu correr no tele
+#URL =  "http://192.168.1.194:8080/shot.jpg"
 
 def nothing(x):
     pass
@@ -97,14 +99,72 @@ def addImages(image1, image2):
 
     return added_im
 
+def toGray(image):
+    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+def loadCardImages():
+    global five,ace,king,two,hearts,spades,diamonds,clubs
+    global number_dict, symbol_dict
+    
+    
+    three = toGray(cv2.imread("cardsLogo/numbers/three.jpg"))
+    four = toGray(cv2.imread("cardsLogo/numbers/four.jpg"))
+    six = toGray(cv2.imread("cardsLogo/numbers/six.jpg"))
+    seven = toGray(cv2.imread("cardsLogo/numbers/seven.jpg"))
+    eight = toGray(cv2.imread("cardsLogo/numbers/eight.jpg"))
+    nine = toGray(cv2.imread("cardsLogo/numbers/nine.jpg"))
+    ten = toGray(cv2.imread("cardsLogo/numbers/ten.jpg"))
+    queen = toGray(cv2.imread("cardsLogo/numbers/queen.jpg"))
+    knave = toGray(cv2.imread("cardsLogo/numbers/knave.jpg"))
+       
+
+    five = toGray(cv2.imread("cardsLogo/numbers/five.jpg"))
+    ace = toGray(cv2.imread("cardsLogo/numbers/ace.jpg"))
+    king = toGray(cv2.imread("cardsLogo/numbers/king.jpg"))
+    two = toGray(cv2.imread("cardsLogo/numbers/two.jpg"))
+
+    number_dict = {"five":five, "ace":ace, "king":king, "two":two, "three": three, "four":four, "six":six, "seven":seven, "eight":eight, "nine":nine, "ten":ten, "queen": queen, "knave":knave }
+
+    hearts = toGray(cv2.imread("cardsLogo/simbols/hearts.jpg"))
+    spades = toGray(cv2.imread("cardsLogo/simbols/spades.jpg"))
+    diamonds = toGray(cv2.imread("cardsLogo/simbols/diamonds.jpg"))
+    clubs = toGray(cv2.imread("cardsLogo/simbols/clubs.jpg"))
+
+    symbol_dict = {"hearts":hearts, "spades": spades,"clubs":clubs,"diamonds":diamonds}
+
+def bestMatch(num, symb):
+    global number_dict, symbol_dict
+
+    min_number_pixels = 9999999999
+    best_match_number = 0
+    for key in number_dict.keys():
+        added = addImages(num, number_dict[key])
+        pixels = cv2.countNonZero(added)
+
+        if pixels < min_number_pixels:
+            best_match_number = key
+            min_number_pixels = pixels
+
+    symbol_pixels = cv2.countNonZero(symb)
+    min = 9999999
+    best_match_symbol = 0
+    for key in symbol_dict.keys():
+        
+        diff = cv2.absdiff(symb, symbol_dict[key] )
+        value  = int(np.sum(diff)/255)
+
+        if value < min:
+            best_match_symbol = key
+            min = value
+
+    return best_match_number, best_match_symbol
+
 
 cv2.namedWindow("modified")
 value = 106
 cv2.createTrackbar("t", "modified", value, 200, nothing)   ## queria mudar em tempo real, idk como fazer
-logo_queen= cv2.imread("cardsLogo/queen.jpg")
 
-cinco = cv2.imread("cardsLogo/numbers/5.jpg")
-cinco = cv2.cvtColor(cinco, cv2.COLOR_BGR2GRAY)
+loadCardImages()
 
 #cv2.imshow('cinco',cinco)
 
@@ -183,110 +243,128 @@ while True:
     
     numberOfCards(frame, numContoursStr)
     
-    
     if fourPoints != []: 
-        a = ordenatePoints(fourPoints[0])
+        for points in fourPoints:
+    
+            a = ordenatePoints(points)
         
-        (br, bl, tl, tr) = a
+            (br, bl, tl, tr) = a
        
-        widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
-        widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
-        maxWidth = max(int(widthA), int(widthB))
+            widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+            widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+            maxWidth = max(int(widthA), int(widthB))
        
 
-        heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
-        heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
-        maxHeight = max(int(heightA), int(heightB))
+            heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+            heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+            maxHeight = max(int(heightA), int(heightB))
         
        
-        if  maxHeight > maxWidth :
+            if  maxHeight > maxWidth :
             
-            a = [tr,br,bl,tl]
+                a = [tr,br,bl,tl]
 
-        else:
-            maxH = maxHeight
-            maxHeight = maxWidth
-            maxWidth = maxH
+            else:
+                maxH = maxHeight
+                maxHeight = maxWidth
+                maxWidth = maxH
 
-        src = np.float32(a)
+            src = np.float32(a)
           
         
-        #print(a)
-        # perspective transform (https://www.geeksforgeeks.org/perspective-transformation-python-opencv/) # função opencv
+            #print(a)
+            # perspective transform (https://www.geeksforgeeks.org/perspective-transformation-python-opencv/) # função opencv
         
-        dst = np.array([ #ordem contraria aos pontos
-		[0, 0],
-		[0, maxHeight - 1],
-		[maxWidth - 1, maxHeight - 1],
-		[maxWidth - 1, 0]], dtype = "float32")
+            dst = np.array([ #ordem contraria aos pontos
+		    [0, 0],
+		    [0, maxHeight - 1],
+		    [maxWidth - 1, maxHeight - 1],
+		    [maxWidth - 1, 0]], dtype = "float32")
 
 
-        # transformation matrix
-        matrix = cv2.getPerspectiveTransform(src, dst)
+            # transformation matrix
+            matrix = cv2.getPerspectiveTransform(src, dst)
 
-        resultPerspective = cv2.warpPerspective(frame, matrix, (maxWidth, maxHeight))
+            resultPerspective = cv2.warpPerspective(frame, matrix, (maxWidth, maxHeight))
 
-        resultPerspective = image_resize(resultPerspective, 300)
+            resultPerspective = image_resize(resultPerspective, 300)
 
-        logo = resultPerspective[0:120, 10:52] #primerio valor altura(x), segundo largura(y)
-        logo = transform2binary(logo)
-        ## split simbol and number
+            logo = resultPerspective[0:120, 0:40] #primerio valor altura(x), segundo largura(y), wrap cut number + simbol
+            logo = transform2binary(logo)
+            ## split simbol and number
 
-        number = logo[0:75, 0:40]
-        simbol = logo[76:120, 0:35]
+            number = logo[0:65, 0:45]
+            simbol = logo[65:130, 0:45]
         
-        ## SIMBOL
-        contoursSimbol, hier = cv2.findContours(simbol, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        contoursSimbol = sorted(contoursSimbol, key = cv2.contourArea, reverse=True)
+            ## SIMBOL
+            contoursSimbol, hier = cv2.findContours(simbol, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            contoursSimbol = sorted(contoursSimbol, key = cv2.contourArea, reverse=True)
         
-        if len(contoursSimbol) != 0:
-            x1,y1,w1,h1 = cv2.boundingRect(contoursSimbol[0])
-            xSimbol = simbol[y1:y1+h1, x1:x1+w1]
-            #cv2.rectangle(simbol,(x1,y1),(x1+w1,y1+h1),(255,0,0),2)
-            #print("w1", w1) ## 34
-            #print("h1",h1)  ## 55
-            sizeSimbol = cv2.resize(xSimbol, (34,55),0,0)
+ 
+            if len(contoursSimbol) != 0:
+                x1,y1,w1,h1 = cv2.boundingRect(contoursSimbol[0])
+                xSimbol = simbol[y1:y1+h1, x1:x1+w1]
+                #cv2.rectangle(simbol,(x1,y1),(x1+w1,y1+h1),(255,0,0),2)
+                #print("w1", w1) ## 34
+                #print("h1",h1)  ## 55
+                sizeSimbol = cv2.resize(xSimbol, (28,23),0,0)
 
-        ## NUMBER
-        contoursNumber, hier = cv2.findContours(number, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        contoursNumber = sorted(contoursNumber, key = cv2.contourArea, reverse=True)
+            ## NUMBER
+            contoursNumber, hier = cv2.findContours(number, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            contoursNumber = sorted(contoursNumber, key = cv2.contourArea, reverse=True)
         
-        if len(contoursNumber) != 0:
-            x2,y2,w2,h2 = cv2.boundingRect(contoursNumber[0])
-            xNumber = number[y2:y2+h2, x2:x2+w2]
-            #cv2.rectangle(number,(x2,y2),(x2+w2,y2+h2),(255,0,0),2)
-            #print("w2", w2) ## 27
-            #print("h2",h2)  ## 31
-            sizeNumber = cv2.resize(xNumber, (27,31),0 ,0)
-            print("numero", sizeNumber.shape)
+            if len(contoursNumber) != 0:
+                x2,y2,w2,h2 = cv2.boundingRect(contoursNumber[0])
+                xNumber = number[y2:y2+h2, x2:x2+w2]
+                #cv2.rectangle(number,(x2,y2),(x2+w2,y2+h2),(255,0,0),2)
+                #print("w2", w2) ## 27
+                #print("h2",h2)  ## 31
+                sizeNumber = cv2.resize(xNumber, (25,42),0 ,0)
+                print("numero", sizeNumber.shape)
 
-        added_clubs = addImages(sizeNumber,cinco)
-        #w_pixels_clubs = cv2.countNonZero(added_clubs)
+        
+            #w_pixels_clubs = cv2.countNonZero(added_clubs)
         
 
-        if sizeNumber.shape[0] == cinco.shape[0]:
-            print("lul")
-            added_clubs = addImages(sizeNumber,cinco)
+            if sizeNumber.shape[0] == number_dict["five"].shape[0]:
+                '''
+                    print("lul")
+                    added_clubs = addImages(sizeNumber,number_dict["five"])
             
-            w_pixels_clubs = cv2.countNonZero(added_clubs)
+                    w_pixels_clubs = cv2.countNonZero(added_clubs)
 
-            print("pixeis clubs", w_pixels_clubs)
+                    print("pixeis clubs", w_pixels_clubs)
             
-            cv2.imshow('added',added_clubs)
+                    cv2.imshow('added',added_clubs)
 
-            if w_pixels_clubs < 550:
-                cv2.putText(frame, 'É UM CINCO ', (50,400), 2,  
-                    2, (255, 0, 0) , 2, cv2.LINE_AA) 
-            
-            
+                    if w_pixels_clubs < 550:
+                        cv2.putText(frame, 'É UM CINCO ', (50,400), 2,  
+                            2, (255, 0, 0) , 2, cv2.LINE_AA) 
+                '''
+                number_txt, symbol_txt = bestMatch(sizeNumber, sizeSimbol)
+                cv2.putText(frame, ""+number_txt+ " of "+ symbol_txt+" !", (int(br[0]), int(br[1])), 2,  
+                            2, (255, 0, 0) , 2, cv2.LINE_AA)
+                '''
+                    added_clubs = addImages(sizeSimbol,symbol_dict["clubs"])
+                    added_hearts = addImages(sizeSimbol,symbol_dict["hearts"])
+                    added_spades = addImages(sizeSimbol,symbol_dict["spades"])
+                    added_ouros = addImages(sizeSimbol,symbol_dict["diamonds"])
+                '''
 
-           
+
  
         cv2.imshow('wrap', resultPerspective)
         
         cv2.imshow('cropped', logo)
         cv2.imshow('simbol', sizeSimbol)
         cv2.imshow('number', sizeNumber)
+
+        '''
+            cv2.imshow('clubs', added_clubs)
+            cv2.imshow('hearts', added_hearts)
+            cv2.imshow('spades', added_spades)
+            cv2.imshow('ouros', added_ouros)
+        '''
         #print(sizeNumber)
         
 
@@ -298,7 +376,8 @@ while True:
     cv2.imshow('modified', modified)
     
     if cv2.waitKey(1) & 0xFF == ord('w'): #to get the cards logo
-        cv2.imwrite('clubs.jpg', sizeSimbol)
+        cv2.imwrite('queen.jpg', sizeNumber)
+        #cv2.imwrite('diamonds.jpg', sizeSimbol)
 
     if cv2.waitKey(25) & 0xFF == ord('q'):
         break
