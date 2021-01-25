@@ -1,12 +1,8 @@
 from cv2 import cv2
 import urllib.request
 import numpy as np
+import sys
 
-
-
-#cap = cv2.VideoCapture(0)
-URL = "http://192.168.1.9:8080/shot.jpg" #p eu correr no tele
-#URL =  "http://192.168.1.194:8080/shot.jpg"
 
 def nothing(x):
     pass
@@ -38,14 +34,14 @@ def numberOfCards(image, number):
     # org 
     org = (50, 60) 
     # fontScale 
-    fontScale = 3
+    fontScale = 2
     # Blue color in BGR 
     color = (255, 0, 0) 
     # Line thickness of 2 px 
     thickness = 2
-    # Using cv2.putText() method 
+    #Using cv2.putText() method 
     image = cv2.putText(frame, number, org, font,  
-                   fontScale, color, thickness, cv2.LINE_AA) 
+                 fontScale, color, thickness, cv2.LINE_AA) 
 
 def imageProcessing(img, threshold): 
     n = 5
@@ -136,9 +132,7 @@ def bestMatch(num, symb):
     min_number_pixels = 9999999999
     best_match_number = 0
     for key in number_dict.keys():
-        #added = addImages(num, number_dict[key])
-        #pixels = cv2.countNonZero(added)
-
+     
         diff = cv2.absdiff(num, number_dict[key] )
         value  = int(np.sum(diff)/255)
 
@@ -160,24 +154,43 @@ def bestMatch(num, symb):
 
     return best_match_number, best_match_symbol
 
+if len(sys.argv) == 1:
+    print("Usage: python3 cardRecognize.py video | testX.jpg")
+    sys.exit()
+argument = sys.argv[1]
 
+image = ""
+if argument == "video":
+    URL = "http://192.168.1.14:8080/shot.jpg" #p utilizar a camera do telemovel
+    #URL =  "http://192.168.1.194:8080/shot.jpg"
+    #cap = cv2.VideoCapture(2)
+
+else:
+    image = argument
+    
 cv2.namedWindow("modified")
-value = 140
-cv2.createTrackbar("t", "modified", value, 200, nothing)   ## queria mudar em tempo real, idk como fazer
+value_thresh = 136
+cv2.createTrackbar("t", "modified", value_thresh, 210, nothing)   ## queria mudar em tempo real, idk como fazer
 
 loadCardImages()
 
-
-
 while True:
-    #print(t)
-    #ret, frame = cap.read()
     
-    img_arr = np.array(bytearray(urllib.request.urlopen(URL).read()),dtype=np.uint8)
-    frame = cv2.imdecode(img_arr, -1)
+    if image == "":
+        #ret, frame = cap.read()
+    
+        img_arr = np.array(bytearray(urllib.request.urlopen(URL).read()),dtype=np.uint8) #para correr no telemovel
+        frame = cv2.imdecode(img_arr, -1) #para correr no telemovel
+
+    else:
+        frame = cv2.imread(image)
 
     t = cv2.getTrackbarPos("t", "modified") # ver depois
-    #print(t)
+
+    
+    if cv2.waitKey(1) & 0xFF == ord('s'): 
+        break
+
     ## processar a imagem
     img2 = frame.copy()
     modified = imageProcessing(frame, t)
@@ -186,25 +199,27 @@ while True:
     ## desenhar o contorno (encontra vários contornos)
     contours, hierarchy = cv2.findContours(modified, mode, method) 
     pointsCards = []
-    #print(len(contours))
-
 
     ## chamar a função texto numero de cartas 
     
     fourPointsCard = []
     fourPoints = [[]]
-    cardDimensions = []
+   
     order = []
     #print(len(contours) - 2)
     for con in contours:
         area = cv2.contourArea(con)
         approx = cv2.approxPolyDP(con, 0.015*cv2.arcLength(con, closed=True) , closed=True) 
 
-        cv2.drawContours(frame, contours, -1, (0, 0, 255), 3) # -1, tudo
+        
         #print("contours", cnt)
-        if len(approx) == 4 and area > 20000: #numero de pontos (retangulo = 4)
+        if len(approx) == 4 and area > 20000 : #numero de pontos (retangulo = 4)
             x, y, w, h = cv2.boundingRect(approx)
-           
+
+            cont = [c for c in contours if len(cv2.approxPolyDP(c, 0.015*cv2.arcLength(con, closed=True) , closed=True)) == 4  ]
+
+            cv2.drawContours(frame, cont, -1, (0, 0, 255), 3) # -1, tudo
+
             pointsCards.append(approx)
 
             #print(pointsCards)
@@ -240,7 +255,6 @@ while True:
     else:
         numContoursStr =  str(len(fourPoints)) + ' cards detected'
     
-    numberOfCards(frame, numContoursStr)
     
     if fourPoints != []: 
         for points in fourPoints:
@@ -271,7 +285,6 @@ while True:
             src = np.float32(a)
           
         
-            #print(a)
             # perspective transform (https://www.geeksforgeeks.org/perspective-transformation-python-opencv/) # função opencv
         
             dst = np.array([ #ordem contraria aos pontos
@@ -319,54 +332,23 @@ while True:
                 #print("w2", w2) ## 27
                 #print("h2",h2)  ## 31
                 sizeNumber = cv2.resize(xNumber, (25,42),0 ,0)
-                print("numero", sizeNumber.shape)
-
-        
-            #w_pixels_clubs = cv2.countNonZero(added_clubs)
-        
+                
 
             if sizeNumber.shape[0] == number_dict["five"].shape[0]:
-                '''
-                    print("lul")
-                    added_clubs = addImages(sizeNumber,number_dict["five"])
-            
-                    w_pixels_clubs = cv2.countNonZero(added_clubs)
-
-                    print("pixeis clubs", w_pixels_clubs)
-            
-                    cv2.imshow('added',added_clubs)
-
-                    if w_pixels_clubs < 550:
-                        cv2.putText(frame, 'É UM CINCO ', (50,400), 2,  
-                            2, (255, 0, 0) , 2, cv2.LINE_AA) 
-                '''
+              
                 number_txt, symbol_txt = bestMatch(sizeNumber, sizeSimbol)
+                cv2.putText(frame, ""+number_txt+ " of "+ symbol_txt+"", (int(center[0]) - 110, int(center[1])), 2,  
+                           0.8, (255, 0, 0) , 2, cv2.LINE_AA)
                 
-                cv2.putText(frame, ""+number_txt+ " of "+ symbol_txt+" !", (int(center[0]), int(center[1])), 2,  
-                            2, (255, 0, 0) , 2, cv2.LINE_AA)
-                '''
-                    added_clubs = addImages(sizeSimbol,symbol_dict["clubs"])
-                    added_hearts = addImages(sizeSimbol,symbol_dict["hearts"])
-                    added_spades = addImages(sizeSimbol,symbol_dict["spades"])
-                    added_ouros = addImages(sizeSimbol,symbol_dict["diamonds"])
-                '''
 
+        #cv2.imshow('wrap', resultPerspective)
 
- 
-        cv2.imshow('wrap', resultPerspective)
+        numberOfCards(frame, numContoursStr)
         
-        cv2.imshow('cropped', logo)
-        cv2.imshow('simbol', sizeSimbol)
-        cv2.imshow('number', sizeNumber)
+        #cv2.imshow('cropped', logo)
+        #cv2.imshow('simbol', sizeSimbol)
+        #cv2.imshow('number', sizeNumber)
 
-        '''
-            cv2.imshow('clubs', added_clubs)
-            cv2.imshow('hearts', added_hearts)
-            cv2.imshow('spades', added_spades)
-            cv2.imshow('ouros', added_ouros)
-        '''
-        #print(sizeNumber)
-        
 
     frame = image_resize(frame, 1000) 
     modified = image_resize(modified, 400)
@@ -376,11 +358,13 @@ while True:
     cv2.imshow('modified', modified)
     
     if cv2.waitKey(1) & 0xFF == ord('w'): #to get the cards logo
-        cv2.imwrite('queen.jpg', sizeNumber)
+        pass
+        #cv2.imwrite('test5.jpg', frame)
         #cv2.imwrite('diamonds.jpg', sizeSimbol)
 
     if cv2.waitKey(25) & 0xFF == ord('q'):
         break
 
 cap.release()
+
 cv2.destroyAllWindows()
