@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+	<!--
+
+	WebGL_example_18.html
+
+	Animating one model.
+
+	J. Madeira - October 2015
+
+	-->
+
+	<title>WebGL example 18 &mdash; Animation</title>
+
+	<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+	<!--
+
+	The simple vertex and fragment shaders.
+
+	Using a vertex coordinate buffer and a vertex colour buffer.
+
+	Passing the Model-View Matrix and the Projection Matrix.
+
+	-->
+
+	<script id="shader-vs" type="x-shader/x-vertex">
+
+					attribute vec3 aVertexPosition;
+
+					//attribute vec3 aVertexColor;
+
+					uniform mat4 uMVMatrix;
+
+					uniform mat4 uPMatrix;
+
+					varying vec4 fColor;
+
+					//varying vec4 vertexColor;
+
+					attribute vec3 vNormal;
+
+					uniform vec4 viewerPosition;
+
+						// NEW - Array of lights
+
+					#define MAX_LIGHTS 5
+
+					uniform int numLights;
+
+					uniform struct Light {
+
+						int isOn;
+
+						vec4 position;
+
+						mat4 lightSourceMatrix; // for animation
+
+						vec3 intensities; //a.k.a the color of the light
+
+						vec3 ambientIntensities;
+
+					} allLights[MAX_LIGHTS];
+
+					// NEW - The material properties
+
+					uniform vec3 k_ambient;
+
+					uniform vec3 k_diffuse;
+
+					uniform vec3 k_specular;
+
+					uniform float shininess;
+
+						void main(void) {
+
+							// To allow seeing the points drawn
+
+							gl_PointSize = 5.0;
+
+							// Just converting the (x,y,z) vertices to Homogeneous Coord.
+
+							// And multiplying by the Projection and the Model-View matrix
+
+							gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+							//vertexColor = vec4(aVertexColor, 1.0);
+							vec3 pos = (uMVMatrix * vec4(aVertexPosition, 1.0)).xyz;
+
+							fColor = vec4(0.0, 0.0, 0.0, 0.0);
+
+							// Converting the RGB color value to RGBA
+
+							for( int i = 0; i < MAX_LIGHTS; i++ )
+			{
+				if( i == numLights )
+
+					break;
+
+				// Switched off ?
+
+				if( allLights[i].isOn == 0 )
+
+					continue;
+
+				// Ambient component is constant for each light source
+
+				vec4 ambient = vec4( k_ambient * allLights[i].ambientIntensities, 1.0 );
+
+				fColor += ambient;
+
+			   // vector from vertex position to light source
+
+			   vec3 L;
+
+			   // check for directional light
+
+			   if(allLights[i].position.w == 0.0)
+
+					L = normalize( (allLights[i].lightSourceMatrix * allLights[i].position).xyz );
+
+			   else
+
+					L = normalize( (allLights[i].lightSourceMatrix * allLights[i].position).xyz - pos );
+
+			   // Vector from the vertex position to the eye
+
+			   vec3 E;
+
+			   // The viewer is at the origin or at an indefinite distance
+			   // on the ZZ axis
+
+			   if(viewerPosition.w == 1.0)
+
+				   // At the origin
+
+				   E = -normalize( pos );
+
+			   else
+
+				   // On the ZZ axis
+
+				   E = vec3(0,0,1);
+
+			   // Halfway vector
+
+			   vec3 H = normalize( L + E );
+
+			   // Transform vertex normal into eye coordinates
+
+			   vec4 N = normalize( uMVMatrix * vec4(vNormal, 0.0));
+
+			   // Compute terms in the illumination equation
+
+			   // Diffuse component
+
+			   float dotProductLN = L[0] * N[0] + L[1] * N[1] + L[2] * N[2];
+
+			   float cosNL = max( dotProductLN, 0.0 );
+
+			   vec4  diffuse = vec4( k_diffuse * cosNL * allLights[i].intensities, 1.0 );
+
+			   // Specular component
+
+			   float dotProductNH = N[0] * H[0] + N[1] * H[1] + N[2] * H[2];
+
+			   float cosNH = pow( max( dotProductNH, 0.0 ), shininess );
+
+			   vec4  specular = vec4( k_specular * cosNH * allLights[i].intensities, 1.0 );
+
+			   if( dotProductLN < 0.0 ) {
+
+				  specular = vec4(0.0, 0.0, 0.0, 1.0);
+			   }
+
+			   // Adding the components
+
+			   fColor += diffuse + specular;
+		   }
+		}
+	</script>
+
+	<script id="shader-vs2" type="x-shader/x-vertex">
+
+		attribute vec3 aVertexPosition;
+
+		attribute vec3 aVertexColor;
+
+		varying vec4 vertexColor;
+
+		void main(void) {
+
+			// Just converting the (x,y,z) vertices to Homogeneous Coord.
+
+			gl_Position = vec4(aVertexPosition, 1.0);
+
+			vertexColor = vec4(aVertexColor, 1.0);
+
+		}
+	</script>
+
+	<script id="shader-fs" type="x-shader/x-fragment">
+
+		precision mediump float;
+
+		varying vec4 fColor;
+
+		void main(void) {
+
+			// Using the passed vertex color
+
+			gl_FragColor = fColor;
+		}
+	</script>
+
+
+	<script id="shader-fs2" type="x-shader/x-fragment">
+		precision mediump float;
+
+		varying vec4 vertexColor;
+
+		void main(void) {
+
+			// Using the passed vertex color
+
+			gl_FragColor = vertexColor;
+		}
+
+	</script>
+
+	<!-- The JS files -->
+	<!-- Some useful functions for browser compatibility -->
+
+	<script type="text/javascript" src="webgl-utils.js"></script>
+
+
+	<script type="text/javascript" src="models.js"></script>
+
+	<!-- Creating the light sources -->
+
+	<script type="text/javascript" src="lightSources.js"></script>
+
+	<!-- Handling vectors and matrices -->
+
+	<script type="text/javascript" src="maths.js"></script>
+
+	<!-- WebGL code -->
+
+	<script type="text/javascript" src="initShaders.js"></script>
+
+	<script type="text/javascript" src="knightsTour.js"></script>
+
+</head>
+
+<body onload="runWebGL();">
+
+	<div style="width: 100%; overflow: hidden;">
+		<div style="text-align: center; width: 50%; float: left;">
+			<h1>The Knight Tour 3D</h1>
+			<canvas id="my-canvas" style=" background-color: #000075; background-image: url(' https://www.transparenttextures.com/patterns/bright-squares.png');" width="600" height="600"></canvas>
+            <p style="color:#FF0000; font-size:25px"  >
+                    Instructions: <br>
+                    Move the start position of the horse: directional arrows <br>
+                    Start algorithm: Enter Key
+            </p> 
+		</div>
+        
+		<div align="center" style="width:50%; float: left; margin-top: 1% ">
+			<div style="text-align: center; width: 50%; float: left;">
+				<h3>Board 2D</h3>
+				<canvas id="2Dcanvas" style=" background-color: #000075; background-image: url(' https://www.transparenttextures.com/patterns/bright-squares.png');" width="500" height="400"></canvas>
+
+			</div>
+		</div>
+		
+
+		<div align="left" style="width:50%; float: left; margin-top: 1% ">
+
+
+			<p>
+
+				<button id="move-up-button">Move Up</button>
+
+				<button id="move-down-button">Move Down</button>
+
+				<button id="move-left-button">Move Left</button>
+
+				<button id="move-right-button">Move Right</button>
+
+				<button id="move-front-button">Move to Front</button>
+
+				<button id="move-back-button">Move to Back</button>
+
+			</p>
+
+			<p>
+
+				<button id="XX-rotate-CW-button">XX Rotate CW</button>
+
+				<button id="XX-rotate-CCW-button">XX Rotate CCW</button>
+
+				<button id="YY-rotate-CW-button">YY Rotate CW</button>
+
+				<button id="YY-rotate-CCW-button">YY Rotate CCW</button>
+
+				<button id="ZZ-rotate-CW-button">ZZ Rotate CW</button>
+
+				<button id="ZZ-rotate-CCW-button">ZZ Rotate CCW</button>
+
+			</p>
+
+			<p>
+
+				<button id="scale-up-button">Scale Up</button>
+
+				<button id="scale-down-button">Scale Down</button>
+
+				<button id="speed">Fast</button>
+
+				<button id="break">Slow</button>
+
+			</p>
+
+			<p>
+				<button id="start-button">Start Knight Tour</button>
+				<button id="reset-button">Try Again!</button>
+
+			</p>
+
+			<p>
+				Set the rendering mode using the dropdown list:
+
+				<select id="rendering-mode-selection">
+					<option value="0">Filled Triangles</option>
+					<option value="1">Wireframe</option>
+					<option value="2">Vertices</option>
+				</select>
+
+			</p>
+
+			<p> Solution board:</p>
+			<p id="tour"></p>
+			<p id="tour1"></p>
+			<p id="tour2"></p>
+			<p id="tour3"></p>
+			<p id="tour4"></p>
+			<p id="tour5"></p>
+			<p id="tour6"></p>
+			<p id="tour7"></p>
+
+		</div>
+</body>
+
+</html>
